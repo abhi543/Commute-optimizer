@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Commute Optimizer | AI-Powered Mobility</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i data-lucide="compass" class="logo-svg"></i>
+                </div>
+                <div>
+                    <h1>DCO</h1>
+                    <span class="sublogo">Daily Commute Optimizer</span>
+                </div>
+            </div>
+
+            <!-- Natural Language Inputs -->
+            <div class="card search-card">
+                <h3><i data-lucide="sparkles"></i> AI Vibe Router</h3>
+                <p class="section-desc">Describe how you want to travel today in plain words:</p>
+                <div class="voice-search-wrapper">
+                    <textarea id="nl-input" placeholder="e.g. I need to reach Patna Junction by 9:30 AM. My knee hurts today, so I prefer less walking and want to avoid crowded trains."></textarea>
+                    <button id="voice-btn" title="Speak your commute" class="btn-icon">
+                        <i data-lucide="mic" id="voice-icon"></i>
+                    </button>
+                </div>
+                
+                <div class="shortcuts-row">
+                    <span class="short-label">Try:</span>
+                    <button class="pill-btn" onclick="applyShortcut('knee')">Knee Pain</button>
+                    <button class="pill-btn" onclick="applyShortcut('rain')">Rainy Day</button>
+                    <button class="pill-btn" onclick="applyShortcut('crowds')">Avoid Crowds</button>
+                </div>
+
+                <div class="manual-routing">
+                    <div class="route-input-group">
+                        <div class="input-field">
+                            <label><i data-lucide="map-pin"></i> Origin</label>
+                            <select id="origin-select">
+                                <option value="Danapur">Danapur (West)</option>
+                                <option value="Bailey Road">Bailey Road</option>
+                                <option value="Boring Road Crossing">Boring Road Crossing</option>
+                                <option value="Patliputra Colony">Patliputra Colony</option>
+                                <option value="Kankarbagh" selected>Kankarbagh</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-field">
+                            <label><i data-lucide="navigation"></i> Destination</label>
+                            <select id="destination-select">
+                                <option value="Dak Bungalow Crossing">Dak Bungalow Crossing</option>
+                                <option value="Gandhi Maidan">Gandhi Maidan</option>
+                                <option value="Patna Junction" selected>Patna Junction</option>
+                                <option value="Rajendra Nagar">Rajendra Nagar</option>
+                                <option value="Patna City">Patna City</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vibe-presets">
+                    <label class="section-label">Select Vibe Preset</label>
+                    <div class="vibe-buttons">
+                        <button class="vibe-btn active" data-vibe="balanced">
+                            <i data-lucide="scale"></i>
+                            <span>Balanced</span>
+                        </button>
+                        <button class="vibe-btn" data-vibe="fast">
+                            <i data-lucide="zap"></i>
+                            <span>Fastest</span>
+                        </button>
+                        <button class="vibe-btn" data-vibe="calm">
+                            <i data-lucide="leaf"></i>
+                            <span>Calm</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button id="optimize-btn" class="primary-btn">
+                    <span>Optimize Commute Path</span>
+                    <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- Departure Predictor Widget -->
+            <div class="card departure-card">
+                <h3><i data-lucide="clock"></i> Smart Departure Slots</h3>
+                <div id="departure-slots" class="slots-container">
+                    <div class="slot-placeholder">Select origin & destination to predict best leave windows.</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Map Area -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-welcome">
+                    <h2>Commute Command Center</h2>
+                    <p>Live network monitoring & dynamic AI routing active</p>
+                </div>
+                <div class="header-actions">
+                    <button class="secondary-btn" id="open-log-modal-btn">
+                        <i data-lucide="alert-triangle"></i>
+                        <span>Log Frustration</span>
+                    </button>
+                    <div class="time-widget">
+                        <i data-lucide="clock"></i>
+                        <span id="current-time">19:56 PM</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Stats Bar -->
+            <section class="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-icon cyan-glow"><i data-lucide="timer"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="stat-time-saved">--</span>
+                        <span class="stat-label">Min Saved This Month</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green-glow"><i data-lucide="smile"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="stat-stress-reduction">--</span>
+                        <span class="stat-label">Stress Reduction Score</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon yellow-glow"><i data-lucide="footprints"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-value" id="stat-total-commutes">--</span>
+                        <span class="stat-label">AI Routed Trips</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Map and Incident Canvas -->
+            <div class="map-container">
+                <div class="map-legend">
+                    <div class="legend-item"><span class="legend-dot green"></span> Metro Line</div>
+                    <div class="legend-item"><span class="legend-dot cyan"></span> Arterial Road</div>
+                    <div class="legend-item"><span class="legend-dot walk"></span> Bike/Walk Link</div>
+                    <div class="legend-item"><span class="legend-dot red"></span> Congestion Logged</div>
+                </div>
+                <canvas id="city-map" width="900" height="420"></canvas>
+            </div>
+
+            <!-- AI Output Panel -->
+            <div class="route-results-section">
+                <!-- AI Advice Box -->
+                <div class="card ai-advice-card" id="ai-advice-container" style="display: none;">
+                    <div class="ai-avatar">
+                        <i data-lucide="bot"></i>
+                    </div>
+                    <div class="ai-speech-bubble">
+                        <h4>AI Assistant Recommendation</h4>
+                        <p id="ai-advice-text">Searching for best commute vibe...</p>
+                    </div>
+                </div>
+
+                <!-- Routes Display Grid -->
+                <div class="routes-grid" id="routes-grid-container">
+                    <!-- Dynamic route cards populated by JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar - Community reports -->
+        <aside class="right-sidebar">
+            <div class="sidebar-section-header">
+                <h3><i data-lucide="message-square"></i> Community Feeds</h3>
+                <span class="badge" id="report-count">0 reports</span>
+            </div>
+            
+            <div class="reports-list" id="community-reports-list">
+                <!-- Log cards populated dynamically -->
+                <div class="report-placeholder">No active road frustrations logged today.</div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Frustration Logger Modal -->
+    <div class="modal-overlay" id="log-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2><i data-lucide="alert-circle"></i> Log Commute Frustration</h2>
+                <button class="close-modal-btn" id="close-modal-btn"><i data-lucide="x"></i></button>
+            </div>
+            <form id="frustration-form">
+                <div class="form-group">
+                    <label for="modal-location-select">Location / Landmark</label>
+                    <select id="modal-location-select" required>
+                        <option value="Danapur">Danapur (West)</option>
+                        <option value="Bailey Road">Bailey Road</option>
+                        <option value="Boring Road Crossing">Boring Road Crossing</option>
+                        <option value="Patliputra Colony">Patliputra Colony</option>
+                        <option value="Dak Bungalow Crossing">Dak Bungalow Crossing</option>
+                        <option value="Gandhi Maidan">Gandhi Maidan</option>
+                        <option value="Patna Junction">Patna Junction</option>
+                        <option value="Rajendra Nagar">Rajendra Nagar</option>
+                        <option value="Kankarbagh">Kankarbagh</option>
+                        <option value="Patna City">Patna City</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Frustration Category</label>
+                    <div class="category-grid">
+                        <label class="category-radio">
+                            <input type="radio" name="category" value="traffic" checked>
+                            <span class="cat-pill"><i data-lucide="car"></i> Traffic Jam</span>
+                        </label>
+                        <label class="category-radio">
+                            <input type="radio" name="category" value="crowding">
+                            <span class="cat-pill"><i data-lucide="users"></i> Crowded Metro</span>
+                        </label>
+                        <label class="category-radio">
+                            <input type="radio" name="category" value="weather">
+                            <span class="cat-pill"><i data-lucide="cloud-rain"></i> Waterlogged</span>
+                        </label>
+                        <label class="category-radio">
+                            <input type="radio" name="category" value="construction">
+                            <span class="cat-pill"><i data-lucide="hammer"></i> Road Block</span>
+                        </label>
+                        <label class="category-radio">
+                            <input type="radio" name="category" value="parking">
+                            <span class="cat-pill"><i data-lucide="park-rounded"></i> No Parking</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="severity-range">Severity Level: <span id="severity-val">3</span>/5</label>
+                    <input type="range" id="severity-range" min="1" max="5" value="3" step="1">
+                    <div class="range-labels">
+                        <span>Minor Delay</span>
+                        <span>Gridlock / Impassable</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="log-text">Log description (AI extracts context)</label>
+                    <textarea id="log-text" placeholder="e.g. Bailey Road waterlogging is severe after the heavy monsoon downpour, vehicles stalling." required></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" id="cancel-modal-btn">Cancel</button>
+                    <button type="submit" class="primary-btn">Submit Log to Network</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script imports -->
+    <script src="/static/app.js"></script>
+    <script>
+        // Trigger lucide icons rendering
+        lucide.createIcons();
+    </script>
+</body>
+</html>
