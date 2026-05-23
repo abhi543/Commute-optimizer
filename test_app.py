@@ -11,7 +11,13 @@ import optimizer
 class TestDCOApplication(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Initialize database for testing
+        # Delete old db if exists to force clean re-seeding
+        db_path = "dco.db"
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+            except Exception:
+                pass
         database.init_db()
         cls.client = TestClient(app)
 
@@ -34,29 +40,33 @@ class TestDCOApplication(unittest.TestCase):
         logs = response.json()
         
         self.assertGreater(len(logs), 0)
-        self.assertEqual(logs[0]["location_name"], "Bailey Road")
+        # Check first log is Silk Board (seeded)
+        self.assertEqual(logs[0]["location_name"], "Silk Board Junction, Bangalore")
         print(f"[OK] Frustration logs query test passed. Seed logs retrieved: {len(logs)}")
 
     def test_03_route_optimization(self):
-        """Verify Dijkstra route calculation returns 3 distinct multi-modal paths."""
+        """Verify OSRM route calculation returns 3 distinct paths."""
         payload = {
-            "origin": "Kankarbagh",
-            "destination": "Patna Junction",
+            "origin_lat": 12.9176,
+            "origin_lng": 77.6244,
+            "dest_lat": 12.9719,
+            "dest_lng": 77.6412,
+            "origin_name": "Silk Board, Bangalore",
+            "destination_name": "Indiranagar, Bangalore",
             "preferences": "I need to reach quickly, hate crowded trains today"
         }
         response = self.client.post("/api/optimize-route", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
         
-        self.assertEqual(data["origin"], "Kankarbagh")
-        self.assertEqual(data["destination"], "Patna Junction")
+        self.assertEqual(data["origin"], "Silk Board, Bangalore")
+        self.assertEqual(data["destination"], "Indiranagar, Bangalore")
         self.assertIn("routes", data)
         self.assertIn("ai_advice", data)
         
         routes = data["routes"]
         self.assertEqual(len(routes), 3) # Fastest, Eco, Low-Stress
         
-        # Verify content schema of first route card
         self.assertEqual(routes[0]["route_type"], "Fastest Route")
         self.assertIn("time_minutes", routes[0])
         self.assertIn("distance_km", routes[0])
@@ -65,38 +75,42 @@ class TestDCOApplication(unittest.TestCase):
 
     def test_04_create_and_recalc_frustration(self):
         """Verify logging a severe congestion event forces dynamic re-routing around that node."""
-        # 1. Fetch normal route from Danapur to Gandhi Maidan
+        # 1. Fetch normal route from Silk Board to Indiranagar
         pre_payload = {
-            "origin": "Danapur",
-            "destination": "Gandhi Maidan",
+            "origin_lat": 12.9176,
+            "origin_lng": 77.6244,
+            "dest_lat": 12.9719,
+            "dest_lng": 77.6412,
+            "origin_name": "Silk Board, Bangalore",
+            "destination_name": "Indiranagar, Bangalore",
             "preferences": ""
         }
         res_pre = self.client.post("/api/optimize-route", json=pre_payload)
         pre_routes = res_pre.json()["routes"]
-        pre_low_stress_path = [r for r in pre_routes if r["route_type"] == "Low-Stress / AI Vibe"][0]["path"]
+        pre_low_stress_path = [r for r in pre_routes if r["route_type"] == "Low-Stress / AI Vibe"][0]
         
-        # 2. Log severe bottleneck on Bailey Road (which is on the standard path)
+        # 2. Log severe bottleneck on a coordinate nearby (Hebbal Flyover, Bangalore)
         log_payload = {
-            "log_text": "Bailey Road completely flooded. Underpass is blocked.",
+            "log_text": "Hebbal Flyover is completely blocked.",
             "category": "weather",
             "severity": 5,
-            "location_name": "Bailey Road"
+            "location_name": "Hebbal Flyover, Bangalore",
+            "lat": 13.0359,
+            "lng": 77.5970
         }
         res_log = self.client.post("/api/frustration-logs", json=log_payload)
         self.assertEqual(res_log.status_code, 200)
         
-        # 3. Recalculate routes. The Low-Stress path should now have a significantly higher cost or bypass it.
+        # 3. Recalculate routes.
         res_post = self.client.post("/api/optimize-route", json=pre_payload)
         post_routes = res_post.json()["routes"]
         post_low_stress = [r for r in post_routes if r["route_type"] == "Low-Stress / AI Vibe"][0]
         
-        # Since we applied a severity 5 log (severity * 2.5 min = 12.5 min penalty at Bailey Road),
-        # the Low-Stress router should apply this penalty, increasing cost or taking a bypass (like Patliputra).
         print(f"[OK] Dynamic penalty test passed. Post-bottleneck low-stress duration: {post_low_stress['time_minutes']} mins")
 
     def test_05_departure_predictor(self):
         """Verify the smart departure slot suggestions endpoint."""
-        response = self.client.get("/api/departure-predictor?origin=Danapur&destination=Patna Junction")
+        response = self.client.get("/api/departure-predictor?origin_lat=12.9176&origin_lng=77.6244&dest_lat=12.9719&dest_lng=77.6412")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import os
 import json
 import urllib.request
+import urllib.parse
 import urllib.error
 from datetime import datetime, timedelta
 
@@ -20,8 +21,12 @@ def on_startup():
 
 # Model schemas
 class RouteRequest(BaseModel):
-    origin: str
-    destination: str
+    origin_lat: float
+    origin_lng: float
+    dest_lat: float
+    dest_lng: float
+    origin_name: str
+    destination_name: str
     preferences: str = ""
 
 class FrustrationLogRequest(BaseModel):
@@ -29,8 +34,10 @@ class FrustrationLogRequest(BaseModel):
     category: str
     severity: int
     location_name: str
+    lat: float
+    lng: float
 
-# Helper: Call Gemini API using urllib (standard library, zero dependencies)
+# Helper: Call Gemini API using urllib
 def generate_gemini_advice(origin: str, destination: str, preferences: str, routes: list, active_logs: list):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -41,16 +48,16 @@ You are the AI routing advisor for the Daily Commute Optimizer (DCO) app.
 The user wants to travel from {origin} to {destination}.
 Their preferences/constraints are: "{preferences}"
 
-Available routes computed by the optimizer:
+Available real-world routes computed by the OSRM optimizer:
 {json.dumps(routes, indent=2)}
 
 Active community reports & frustration logs:
 {json.dumps(active_logs, indent=2)}
 
 Write a concise, personalized commuter advisory (2-3 sentences max).
-- Recommend the best route based on their constraints (e.g., if they have knee pain, avoid stairs/walking; if they hate traffic, suggest metro or low-stress route).
-- Mention any active disruptions (like construction or waterlogging) that they will bypass.
-- Give a highly specific, human-like recommendation (e.g. "Leave 12 minutes early to beat the Kankarbagh gridlock").
+- Recommend the best route based on their constraints.
+- Mention if any active frustration logs (e.g. Silk Board Junction or Connaught Place congestion) overlap with their paths.
+- Give a highly specific, human-like recommendation (e.g. "Leave 12 minutes early via Route B to bypass the construction delay").
 - Keep it highly professional, premium, and friendly.
 """
     
@@ -90,83 +97,102 @@ def generate_fallback_advice(origin: str, destination: str, preferences: str, ro
     has_crowd_aversion = any(w in pref_lower for w in ["crowd", "rush", "train", "metro", "packed", "people"])
     has_speed_focus = any(w in pref_lower for w in ["fast", "quick", "hurry", "late", "speed"])
     
-    # Match any active frustration locations
+    # Identify impacting incidents
     impacted_locations = []
-    for log in active_logs:
-        loc = log["location_name"]
-        for route in routes:
-            if loc in route["path"]:
-                impacted_locations.append((loc, log["category"], log["severity"]))
-                break
+    for r in routes:
+        if r.get("incidents"):
+            for inc in r["incidents"]:
+                impacted_locations.append(inc["location_name"])
                 
     advices = []
     
     # Core recommendations based on preferences
     if has_knee_pain:
-        advices.append(f"To protect your knee, we recommend taking a direct Cab or Auto. Avoid the Active/Eco route which involves significant walking segments.")
+        advices.append(f"Due to your leg/knee discomfort, avoid active biking or walking. We suggest the driving route which drops you closest to {destination}.")
     elif has_rain:
-        flooded = [loc for loc, cat, sev in impacted_locations if cat in ["weather", "traffic"]]
-        if flooded:
-            advices.append(f"Due to the wet conditions and reported waterlogging at {', '.join(flooded[:2])}, we recommend riding the Metro which is completely weatherproof.")
+        if impacted_locations:
+            advices.append(f"Heavy rain conditions observed. Bypassing active delays near {', '.join(impacted_locations[:2])} by selecting the Eco/Metro corridor.")
         else:
-            advices.append("It's rainy today! We advise using covered transit modes (Metro or Cab) over two-wheelers, and leaving 10 minutes early due to slick roads.")
+            advices.append("Slick roads reported from the rain. We suggest a covered vehicle (Cab/Auto) and leaving 10 minutes early.")
     elif has_crowd_aversion:
-        advices.append("Since you want to avoid crowds, skip the Metro during this window. The Low-Stress Cab route using residential links is 8 minutes slower but significantly calmer.")
+        advices.append("To avoid crowd bottlenecks, skip public buses. The alternative driving link is 5 minutes slower but has low congestion.")
     elif has_speed_focus:
-        advices.append("Since you are in a rush, we recommend the Fastest Route using the Metro corridor. It is immune to the traffic bottlenecks at major crossings.")
+        advices.append("Since speed is key, take the Fastest Route. Watch out for peak hour bottlenecks at major flyover ramps.")
         
     # Standard fallback if no specific keywords match
     if not advices:
-        # Check if we bypassed anything in the low-stress route
-        congested = [loc for loc, cat, sev in impacted_locations if sev >= 4]
-        if congested:
-            advices.append(f"We've optimized your route to bypass active bottlenecks at {', '.join(congested[:2])}.")
+        if impacted_locations:
+            advices.append(f"We've optimized your transit path to steer clear of active reports near {', '.join(impacted_locations[:2])}.")
         else:
-            advices.append(f"Standard traffic conditions observed. The Low-Stress path is recommended for a balanced, calm ride today.")
+            advices.append("Commute networks are flowing normally. The Low-Stress option provides the most relaxing route today.")
             
     # Add departure suggestion
     now = datetime.now()
     opt_leave = now + timedelta(minutes=15)
-    advices.append(f"Optimal departure window: {opt_leave.strftime('%I:%M %p')} to avoid peak congestion. Have a safe trip!")
+    advices.append(f"Optimal departure window: {opt_leave.strftime('%I:%M %p')}. Safe travels!")
     
     return " ".join(advices)
 
 # API Endpoints
+@app.get("/api/geocode")
+def geocode_address(q: str):
+    """
+    Geocodes text address using Nominatim OpenStreetMap API.
+    Restricts results to India ('in') for faster matches.
+    """
+    encoded_q = urllib.parse.quote(q)
+    url = f"https://nominatim.openstreetmap.org/search?q={encoded_q}&format=json&limit=5&countrycodes=in"
+    
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'DailyCommuteOptimizer/1.0'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            results = []
+            for item in data:
+                results.append({
+                    "display_name": item["display_name"],
+                    "lat": float(item["lat"]),
+                    "lng": float(item["lon"])
+                })
+            return results
+    except Exception as e:
+        print(f"Geocoding failed for '{q}': {e}")
+        raise HTTPException(status_code=500, detail="Geocoding service currently unavailable")
+
 @app.post("/api/optimize-route")
 def optimize_route(req: RouteRequest):
-    if req.origin not in optimizer.LANDMARKS or req.destination not in optimizer.LANDMARKS:
-        raise HTTPException(status_code=400, detail="Invalid origin or destination landmark")
+    routes = optimizer.optimize_real_routes(req.origin_lat, req.origin_lng, req.dest_lat, req.dest_lng)
+    if not routes:
+        raise HTTPException(status_code=404, detail="No routes could be computed")
         
-    routes = optimizer.compute_all_routes(req.origin, req.destination)
     active_logs = database.get_frustration_logs(limit=10)
     
     # Try Gemini first, fallback to rule-based
-    ai_advice = generate_gemini_advice(req.origin, req.destination, req.preferences, routes, active_logs)
+    ai_advice = generate_gemini_advice(req.origin_name, req.destination_name, req.preferences, routes, active_logs)
     if not ai_advice:
-        ai_advice = generate_fallback_advice(req.origin, req.destination, req.preferences, routes, active_logs)
+        ai_advice = generate_fallback_advice(req.origin_name, req.destination_name, req.preferences, routes, active_logs)
         
     return {
-        "origin": req.origin,
-        "destination": req.destination,
-        "origin_coords": optimizer.LANDMARKS[req.origin],
-        "destination_coords": optimizer.LANDMARKS[req.destination],
+        "origin": req.origin_name,
+        "destination": req.destination_name,
+        "origin_coords": {"lat": req.origin_lat, "lng": req.origin_lng},
+        "destination_coords": {"lat": req.dest_lat, "lng": req.dest_lng},
         "routes": routes,
         "ai_advice": ai_advice
     }
 
 @app.post("/api/frustration-logs")
 def create_frustration_log(req: FrustrationLogRequest):
-    if req.location_name not in optimizer.LANDMARKS:
-        raise HTTPException(status_code=400, detail="Invalid landmark name")
-        
-    coords = optimizer.LANDMARKS[req.location_name]
     database.add_frustration_log(
         req.log_text,
         req.category,
         req.severity,
         req.location_name,
-        coords["lat"],
-        coords["lng"]
+        req.lat,
+        req.lng
     )
     return {"status": "success", "message": "Frustration logged successfully"}
 
@@ -175,11 +201,8 @@ def get_frustration_logs():
     return database.get_frustration_logs()
 
 @app.get("/api/departure-predictor")
-def get_departure_predictor(origin: str, destination: str):
-    if origin not in optimizer.LANDMARKS or destination not in optimizer.LANDMARKS:
-        raise HTTPException(status_code=400, detail="Invalid landmarks")
-        
-    routes = optimizer.compute_all_routes(origin, destination)
+def get_departure_predictor(origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float):
+    routes = optimizer.optimize_real_routes(origin_lat, origin_lng, dest_lat, dest_lng)
     if not routes:
         raise HTTPException(status_code=404, detail="No route found")
         
@@ -189,7 +212,7 @@ def get_departure_predictor(origin: str, destination: str):
     # Predict intervals
     slots = []
     
-    # 1. Early slot (30 mins before)
+    # 1. Early slot
     time_1 = now - timedelta(minutes=15)
     slots.append({
         "time": time_1.strftime("%I:%M %p"),
@@ -199,7 +222,7 @@ def get_departure_predictor(origin: str, destination: str):
         "stress": "Very Calm"
     })
     
-    # 2. Recommended slot (current)
+    # 2. Recommended slot
     time_2 = now + timedelta(minutes=10)
     slots.append({
         "time": time_2.strftime("%I:%M %p"),
@@ -209,7 +232,7 @@ def get_departure_predictor(origin: str, destination: str):
         "stress": "Calm"
     })
     
-    # 3. Peak congestion slot (25 mins later)
+    # 3. Peak congestion slot
     time_3 = now + timedelta(minutes=30)
     slots.append({
         "time": time_3.strftime("%I:%M %p"),
@@ -220,8 +243,6 @@ def get_departure_predictor(origin: str, destination: str):
     })
     
     return {
-        "origin": origin,
-        "destination": destination,
         "slots": slots
     }
 

@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Commute Optimizer | AI-Powered Mobility</title>
+    <title>Daily Commute Optimizer | AI-Powered Real Routing</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet CSS Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -32,7 +34,7 @@
                 <h3><i data-lucide="sparkles"></i> AI Vibe Router</h3>
                 <p class="section-desc">Describe how you want to travel today in plain words:</p>
                 <div class="voice-search-wrapper">
-                    <textarea id="nl-input" placeholder="e.g. I need to reach Patna Junction by 9:30 AM. My knee hurts today, so I prefer less walking and want to avoid crowded trains."></textarea>
+                    <textarea id="nl-input" placeholder="e.g. I need to reach office by 9:30 AM. My knee hurts today, so I prefer less walking and want to avoid stairs."></textarea>
                     <button id="voice-btn" title="Speak your commute" class="btn-icon">
                         <i data-lucide="mic" id="voice-icon"></i>
                     </button>
@@ -47,26 +49,16 @@
 
                 <div class="manual-routing">
                     <div class="route-input-group">
-                        <div class="input-field">
-                            <label><i data-lucide="map-pin"></i> Origin</label>
-                            <select id="origin-select">
-                                <option value="Danapur">Danapur (West)</option>
-                                <option value="Bailey Road">Bailey Road</option>
-                                <option value="Boring Road Crossing">Boring Road Crossing</option>
-                                <option value="Patliputra Colony">Patliputra Colony</option>
-                                <option value="Kankarbagh" selected>Kankarbagh</option>
-                            </select>
+                        <div class="input-field search-autocomplete-wrapper">
+                            <label><i data-lucide="map-pin"></i> Origin Location</label>
+                            <input type="text" id="origin-input" placeholder="Type starting point (e.g. HSR Layout)..." autocomplete="off" value="Silk Board, Bangalore">
+                            <div id="origin-suggestions" class="autocomplete-list"></div>
                         </div>
                         
-                        <div class="input-field">
-                            <label><i data-lucide="navigation"></i> Destination</label>
-                            <select id="destination-select">
-                                <option value="Dak Bungalow Crossing">Dak Bungalow Crossing</option>
-                                <option value="Gandhi Maidan">Gandhi Maidan</option>
-                                <option value="Patna Junction" selected>Patna Junction</option>
-                                <option value="Rajendra Nagar">Rajendra Nagar</option>
-                                <option value="Patna City">Patna City</option>
-                            </select>
+                        <div class="input-field search-autocomplete-wrapper">
+                            <label><i data-lucide="navigation"></i> Destination Location</label>
+                            <input type="text" id="destination-input" placeholder="Type destination point (e.g. Majestic)..." autocomplete="off" value="Indiranagar, Bangalore">
+                            <div id="destination-suggestions" class="autocomplete-list"></div>
                         </div>
                     </div>
                 </div>
@@ -99,7 +91,7 @@
             <div class="card departure-card">
                 <h3><i data-lucide="clock"></i> Smart Departure Slots</h3>
                 <div id="departure-slots" class="slots-container">
-                    <div class="slot-placeholder">Select origin & destination to predict best leave windows.</div>
+                    <div class="slot-placeholder">Search origin & destination to predict best leave windows.</div>
                 </div>
             </div>
         </aside>
@@ -109,7 +101,7 @@
             <header class="main-header">
                 <div class="header-welcome">
                     <h2>Commute Command Center</h2>
-                    <p>Live network monitoring & dynamic AI routing active</p>
+                    <p>Live India traffic networks & dynamic AI routing active</p>
                 </div>
                 <div class="header-actions">
                     <button class="secondary-btn" id="open-log-modal-btn">
@@ -148,15 +140,9 @@
                 </div>
             </section>
 
-            <!-- Map and Incident Canvas -->
+            <!-- Leaflet Map Container -->
             <div class="map-container">
-                <div class="map-legend">
-                    <div class="legend-item"><span class="legend-dot green"></span> Metro Line</div>
-                    <div class="legend-item"><span class="legend-dot cyan"></span> Arterial Road</div>
-                    <div class="legend-item"><span class="legend-dot walk"></span> Bike/Walk Link</div>
-                    <div class="legend-item"><span class="legend-dot red"></span> Congestion Logged</div>
-                </div>
-                <canvas id="city-map" width="900" height="420"></canvas>
+                <div id="city-map"></div>
             </div>
 
             <!-- AI Output Panel -->
@@ -202,19 +188,11 @@
             </div>
             <form id="frustration-form">
                 <div class="form-group">
-                    <label for="modal-location-select">Location / Landmark</label>
-                    <select id="modal-location-select" required>
-                        <option value="Danapur">Danapur (West)</option>
-                        <option value="Bailey Road">Bailey Road</option>
-                        <option value="Boring Road Crossing">Boring Road Crossing</option>
-                        <option value="Patliputra Colony">Patliputra Colony</option>
-                        <option value="Dak Bungalow Crossing">Dak Bungalow Crossing</option>
-                        <option value="Gandhi Maidan">Gandhi Maidan</option>
-                        <option value="Patna Junction">Patna Junction</option>
-                        <option value="Rajendra Nagar">Rajendra Nagar</option>
-                        <option value="Kankarbagh">Kankarbagh</option>
-                        <option value="Patna City">Patna City</option>
-                    </select>
+                    <label for="modal-location-name">Incident Location / Area Name</label>
+                    <input type="text" id="modal-location-name" placeholder="e.g. Silk Board Flyover, Bangalore" required>
+                    <input type="hidden" id="modal-location-lat">
+                    <input type="hidden" id="modal-location-lng">
+                    <div class="location-coord-badge" id="modal-coordinates-display">Click anywhere on the map to drop precise pin</div>
                 </div>
 
                 <div class="form-group">
@@ -254,7 +232,7 @@
 
                 <div class="form-group">
                     <label for="log-text">Log description (AI extracts context)</label>
-                    <textarea id="log-text" placeholder="e.g. Bailey Road waterlogging is severe after the heavy monsoon downpour, vehicles stalling." required></textarea>
+                    <textarea id="log-text" placeholder="e.g. Silk Board flyover is completely blocked due to an auto breakdown, traffic backing up to HSR." required></textarea>
                 </div>
 
                 <div class="form-actions">
@@ -265,6 +243,8 @@
         </div>
     </div>
 
+    <!-- Leaflet JS Mapping -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Script imports -->
     <script src="/static/app.js"></script>
     <script>

@@ -53,68 +53,53 @@ def init_db():
     conn.close()
 
 def seed_data(cursor):
-    # Fictional / Patna-inspired landmarks map coordinates (x, y on a 1000x600 canvas)
-    # Latitude and longitude mapped to screen coordinates roughly
-    landmarks = {
-        "Danapur": {"lat": 25.6300, "lng": 85.0400, "description": "Residential hub on the west side"},
-        "Bailey Road": {"lat": 25.6110, "lng": 85.0850, "description": "Major arterial highway, prone to metro construction jams"},
-        "Boring Road Crossing": {"lat": 25.6180, "lng": 85.1150, "description": "Highly congested commercial crossing"},
-        "Patliputra Colony": {"lat": 25.6320, "lng": 85.1050, "description": "Upscale residential area, tree-lined streets"},
-        "Dak Bungalow Crossing": {"lat": 25.6080, "lng": 85.1380, "description": "Heart of the city, extremely busy crossing"},
-        "Gandhi Maidan": {"lat": 25.6200, "lng": 85.1480, "description": "Central public park, traffic-heavy perimeter"},
-        "Patna Junction": {"lat": 25.6020, "lng": 85.1320, "description": "Main railway station and metro transit exchange"},
-        "Rajendra Nagar": {"lat": 25.5980, "lng": 85.1650, "description": "Major student coaching and residential area"},
-        "Kankarbagh": {"lat": 25.5900, "lng": 85.1550, "description": "Massive residential colony, prone to waterlogging"},
-        "Patna City": {"lat": 25.6050, "lng": 85.2200, "description": "Historical old town, extremely narrow congested streets"}
-    }
-    
-    # Insert some initial frustration logs
+    # Seed frustration logs across major Indian cities
     now = datetime.now()
     initial_logs = [
         (
             (now - timedelta(hours=2)).isoformat(),
-            "Waterlogging near Bailey Road flyover ramp due to morning drizzle. Traffic crawling at 5 km/h.",
+            "Severe traffic bottleneck at Silk Board Junction. Vehicles crawling towards HSR Layout.",
+            "traffic",
+            5,
+            "Silk Board Junction, Bangalore",
+            12.9176,
+            77.6244
+        ),
+        (
+            (now - timedelta(hours=5)).isoformat(),
+            "Waterlogging under Hebbal Flyover due to sudden downpour. Left lane blocked.",
             "weather",
             4,
-            "Bailey Road",
+            "Hebbal Flyover, Bangalore",
+            13.0359,
+            77.5970
+        ),
+        (
+            (now - timedelta(hours=8)).isoformat(),
+            "High passenger crowding inside Indiranagar Metro station. Long queues at gates.",
+            "crowding",
+            4,
+            "Indiranagar Metro, Bangalore",
+            12.9719,
+            77.6412
+        ),
+        (
+            (now - timedelta(days=1)).isoformat(),
+            "Metro construction blocks two lanes on Bailey Road near the flyover ramp.",
+            "construction",
+            4,
+            "Bailey Road, Patna",
             25.6110,
             85.0850
         ),
         (
-            (now - timedelta(hours=6)).isoformat(),
-            "Metro construction barricading has blocked two lanes near Dak Bungalow crossing. Avoid.",
-            "construction",
-            5,
-            "Dak Bungalow Crossing",
-            25.6080,
-            85.1380
-        ),
-        (
-            (now - timedelta(days=1)).isoformat(),
-            "Auto-rickshaws blocking the left lane entirely at Patna Junction exit. Chaos during rush hour.",
-            "traffic",
-            3,
-            "Patna Junction",
-            25.6020,
-            85.1320
-        ),
-        (
-            (now - timedelta(days=2)).isoformat(),
-            "Severe parking shortage at Boring Road Crossing market. Spent 20 minutes circling block.",
+            (now - timedelta(days=1, hours=4)).isoformat(),
+            "Outer Circle near Connaught Place is heavily congested. No parking spaces available.",
             "parking",
             4,
-            "Boring Road Crossing",
-            25.6180,
-            85.1150
-        ),
-        (
-            (now - timedelta(days=2, hours=4)).isoformat(),
-            "High passenger crowding inside the line-1 public transit buses at Kankarbagh terminal.",
-            "crowding",
-            3,
-            "Kankarbagh",
-            25.5900,
-            85.1550
+            "Connaught Place, Delhi",
+            28.6304,
+            77.2177
         )
     ]
     
@@ -123,36 +108,17 @@ def seed_data(cursor):
     VALUES (?, ?, ?, ?, ?, ?, ?)
     """, initial_logs)
     
-    # Seed some commute history
-    modes = ["metro", "cab", "bike", "walking", "auto"]
-    history_entries = []
+    # Seed commute history with generic city names
+    history_entries = [
+        ((now - timedelta(days=1)).isoformat(), "Indiranagar", "Koramangala", "bike", 25, 4),
+        ((now - timedelta(days=2)).isoformat(), "Majestic", "Whitefield", "metro", 40, 5),
+        ((now - timedelta(days=2)).isoformat(), "Dwarka", "Connaught Place", "metro", 45, 5),
+        ((now - timedelta(days=3)).isoformat(), "Danapur", "Patna Junction", "auto", 35, 3),
+        ((now - timedelta(days=3)).isoformat(), "HSR Layout", "Electronic City", "cab", 50, 2),
+        ((now - timedelta(days=4)).isoformat(), "Noida Sec 62", "Rajiv Chowk", "metro", 55, 4),
+        ((now - timedelta(days=4)).isoformat(), "Koramangala", "MG Road", "bike", 20, 5)
+    ]
     
-    # Generate 15 historical commutes over the past week
-    for i in range(15):
-        date_offset = random.randint(1, 7)
-        hour = random.choice([9, 10, 17, 18])  # commute times
-        commute_time = now - timedelta(days=date_offset)
-        commute_time = commute_time.replace(hour=hour, minute=random.randint(0, 59))
-        
-        orig = random.choice(["Danapur", "Bailey Road", "Patliputra Colony", "Kankarbagh"])
-        dest = random.choice(["Dak Bungalow Crossing", "Gandhi Maidan", "Rajendra Nagar", "Patna City"])
-        if orig == dest:
-            continue
-            
-        mode = random.choice(modes)
-        duration = random.randint(15, 65)
-        # Satisfaction is generally lower if duration is higher
-        sat = max(1, min(5, 6 - int(duration / 15) + random.choice([-1, 0, 1])))
-        
-        history_entries.append((
-            commute_time.isoformat(),
-            orig,
-            dest,
-            mode,
-            duration,
-            sat
-        ))
-        
     cursor.executemany("""
     INSERT INTO commute_history (timestamp, origin, destination, mode, duration, satisfaction_score)
     VALUES (?, ?, ?, ?, ?, ?)

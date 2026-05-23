@@ -1107,3 +1107,99 @@ input[type="range"]::-webkit-slider-thumb:hover {
         stroke-dashoffset: 0;
     }
 }
+
+/* Autocomplete search dropdown styling */
+.search-autocomplete-wrapper {
+    position: relative;
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: hsl(222, 35%, 11%);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.autocomplete-list.active {
+    display: block;
+}
+
+.autocomplete-item {
+    padding: 10px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: var(--transition);
+}
+
+.autocomplete-item:hover {
+    background: rgba(0, 242, 254, 0.08);
+    color: var(--neon-cyan);
+}
+
+.location-coord-badge {
+    font-size: 11px;
+    color: var(--neon-cyan);
+    background: rgba(0, 242, 254, 0.05);
+    border: 1px solid rgba(0, 242, 254, 0.15);
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-top: 6px;
+    font-family: monospace;
+}
+
+/* Style overrides for text fields */
+input[type="text"] {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    outline: none;
+    font-family: var(--font-body);
+    font-size: 13px;
+    transition: var(--transition);
+}
+
+input[type="text"]:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.15);
+}
+
+/* Leaflet override to match HUD theme */
+.leaflet-container {
+    background-color: #050814 !important;
+}
+
+.leaflet-bar {
+    border: 1px solid var(--border-color) !important;
+    background-color: hsl(222, 35%, 11%) !important;
+    box-shadow: none !important;
+}
+
+.leaflet-bar a {
+    background-color: hsl(222, 35%, 11%) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    transition: var(--transition);
+}
+
+.leaflet-bar a:hover {
+    background-color: rgba(0, 242, 254, 0.1) !important;
+    color: var(--neon-cyan) !important;
+}
