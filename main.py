@@ -7,7 +7,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import database
 import optimizer
@@ -127,7 +127,8 @@ def generate_fallback_advice(origin: str, destination: str, preferences: str, ro
             advices.append("Commute networks are flowing normally. The Low-Stress option provides the most relaxing route today.")
             
     # Add departure suggestion
-    now = datetime.now()
+    IST = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(IST)
     opt_leave = now + timedelta(minutes=15)
     advices.append(f"Optimal departure window: {opt_leave.strftime('%I:%M %p')}. Safe travels!")
     
@@ -207,7 +208,8 @@ def get_departure_predictor(origin_lat: float, origin_lng: float, dest_lat: floa
         raise HTTPException(status_code=404, detail="No route found")
         
     fastest_time = routes[0]["time_minutes"]
-    now = datetime.now()
+    IST = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(IST)
     
     # Predict intervals
     slots = []
